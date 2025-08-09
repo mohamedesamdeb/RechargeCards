@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+
+
+  <title>لوحة التحكم - كروت الشحن</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--glass:rgba(255,255,255,0.03);--muted:#94a3b8}
+    *{box-sizing:border-box;font-family:Inter, system-ui, Arial}
+    body{margin:0;background:linear-gradient(180deg,#071029 0%,#061426 100%);color:#e6eef6;display:flex;min-height:100vh}
+    .sidebar{width:220px;background:var(--card);padding:20px;display:flex;flex-direction:column;gap:10px}
+    .sidebar h2{font-size:18px;margin:0 0 10px 0;color:var(--accent)}
+    .sidebar a{color:#fff;text-decoration:none;padding:10px;border-radius:8px;transition:0.2s}
+    .sidebar a:hover{background:var(--accent);color:#012}
+    .container{flex:1;padding:18px;max-width:100%}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:10px;align-items:center}
+    .card-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    .card h3{margin:0 0 8px 0;font-size:14px}
+    .big{font-weight:700;font-size:28px}
+    .muted{color:var(--muted);font-size:13px}
+    .regions-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+    .region-card{background:var(--glass);padding:12px;border-radius:10px}
+    .actions{display:flex;gap:8px}
+    input[type="number"],input[type="text"]{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:#012;cursor:pointer}
+    .small{font-size:13px}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .loader{width:18px;height:18px;border:3px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (max-width:768px){body{flex-direction:column}.sidebar{width:100%;flex-direction:row;flex-wrap:wrap;justify-content:center}}
+
+
+    table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+table th, table td {
+  border: 1px solid rgba(255, 255, 255, 0.1); /* خط خفيف شفاف */
+  padding: 8px;
+  text-align: center;
+}
+
+table th {
+  background-color: rgba(255, 255, 255, 0.05); /* نفس روح التصميم */
+  font-weight: bold;
+}
+
+table tr:hover {
+  background-color: rgba(255, 255, 255, 0.05); /* تأثير عند المرور */
+}
+
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>القائمة</h2>
+    <a href="#">الصفحة الرئيسية</a>
+    <a href="#">إدخال كروت الشحن</a>
+    <a href="#">كروت الشحن</a>
+    <a href="#">مواقع هاتتشحن</a>
+    <a href="#">مواقع تم شحنها</a>
+    <a href="#">الإعدادات</a>
+  </div>
+  <div class="container">
+    <header>
+      <h1>لوحة التحكم — كروت الشحن</h1>
+      <div class="controls">
+        <label class="small">سعر الكارت (جنيه): <input id="cardPrice" type="number" min="0" step="1" value="30" style="width:90px"></label>
+        <button id="savePrice">حفظ السعر</button>
+        <button id="refresh">تحديث الآن</button>
+        <div id="spinner" style="display:none" class="loader" title="جارٍ التحميل"></div>
+      </div>
+    </header>
+
+<!-- الصفحة الرئيسية -->
+<section id="home-page">
+  
+  <!-- كروت الإحصائيات -->
+  <section id="stats-cards" class="card-row">
+    <div class="card">
+      <h3>إجمالي المواقع (كلها)</h3>
+      <div id="totalSites" class="big">0</div>
+      <div class="muted">عدد كل المواقع المسجلة في الشيت</div>
+    </div>
+
+    <div class="card">
+      <h3>المواقع المنتظرة للشحن</h3>
+      <div id="waitingSites" class="big">0</div>
+      <div class="muted">مجموع المواقع اللي عليها علامة "تحتاج شحن"</div>
+    </div>
+
+    <div class="card">
+      <h3>المواقع المشحونة</h3>
+      <div id="doneSites" class="big">0</div>
+      <div class="muted">المواقع اللي تم تسجيلها كـ "تم الشحن"</div>
+    </div>
+
+    <div class="card">
+      <h3>إجمالي الأرباح (جنيه)</h3>
+      <div id="profit" class="big">0</div>
+      <div class="muted">حاصل ضرب عدد المواقع المشحونة × سعر الكارت</div>
+    </div>
+  </section>
+
+  <!-- تفصيل حسب المنطقة -->
+  <section id="regions-section" class="card">
+    <h3>تفصيل حسب المنطقة</h3>
+    <div class="regions-list" id="regionsList"></div>
+  </section>
+
+</section>
+
+<!-- صفحة إدخال كروت الشحن -->
+<section id="insert-cards-page" style="display:none;">
+  <h2 style="margin-bottom: 15px; color: var(--accent);">إدخال كروت الشحن</h2>
+  
+  <div style="background: var(--card); padding: 20px; border-radius: 12px; max-width: 500px;">
+<form id="cardForm" method="POST" action="https://script.google.com/macros/s/AKfycbwz4k7Lq9i-ovP5IQGoPMArvpNl5Ks0qTbDOoFyBwX3N8VxrQv-9nIHSpOgaWE3xyaqdA/exec">
+      <label>رقم الموقع</label>
+      <div style="display: flex; margin-bottom: 10px;">
+        <span style="background: var(--glass); padding: 8px 12px; border-radius: 8px 0 0 8px; border: 1px solid rgba(255,255,255,0.06);">CAI</span>
+        <input name="siteNumber" type="number" placeholder="أدخل رقم الموقع" required
+               style="flex:1; border-radius: 0 8px 8px 0; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: inherit;">
+      </div>
+
+      <label>المنطقة</label>
+      <input name="region" type="text" placeholder="أدخل المنطقة" required style="width:100%; margin-bottom:10px;">
+
+      <label>رقم الأونر / الغفير</label>
+      <input name="ownerNumber" type="text" placeholder="أدخل رقم الأونر أو الغفير" required style="width:100%; margin-bottom:10px;">
+
+      <label>رقم الـ Access</label>
+      <input name="accessNumber" type="text" placeholder="أدخل رقم الاكسيس" required style="width:100%; margin-bottom:10px;">
+
+      <label>شركة الكهرباء</label>
+      <input name="electricCompany" type="text" placeholder="أدخل شركة الكهرباء" required style="width:100%; margin-bottom:10px;">
+
+      <label>لوكيشن الموقع</label>
+      <input name="location" type="text" placeholder="أدخل موقع اللوكيشن" required style="width:100%; margin-bottom:10px;">
+
+      <button type="submit" style="width: 100%; padding: 10px; background: var(--accent); color: #012; border: none; border-radius: 8px; cursor: pointer;">
+        إدخال البيانات
+      </button>
+    </form>
+  </div>
+</section>
+
+<!-- صفحة كروت الشحن -->
+<section id="cards-page" style="display:none;">
+  <h2 style="margin-bottom: 15px; color: var(--accent);">كروت الشحن</h2>
+
+  <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+    <input type="text" id="searchSite" placeholder="بحث برقم الموقع"
+      style="padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: inherit;">
+    <select id="filterRegion"
+      style="padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: inherit;">
+      <option value="">كل المناطق</option>
+    </select>
+    <button id="clearAll">إلغاء جميع المواقع المحددة</button>
+  </div>
+
+  <!-- الحاوية الخاصة بالجدول -->
+  <div style="
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+  ">
+    <table style="width: 100%; min-width: 800px; border-collapse: collapse; text-align: center;">
+      <thead>
+        <tr style="background: rgba(255,255,255,0.05);">
+          <th>المسلسل</th>
+          <th>رقم الموقع</th>
+          <th>المنطقة</th>
+          <th>رقم الأونر / الغفير</th>
+          <th>رقم الاكسيس</th>
+          <th>شركة الكهرباء</th>
+          <th>لوكيشن الموقع</th>
+          <th>تحتاج شحن</th>
+        </tr>
+      </thead>
+      <tbody id="cardsTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+    <footer>
+      <div>ملاحظة: الواجهة تفترض وجود Web API يُرجع كل البيانات من Google Sheets كـ JSON.</div>
+    </footer>
+  </div>
+
+  <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwz4k7Lq9i-ovP5IQGoPMArvpNl5Ks0qTbDOoFyBwX3N8VxrQv-9nIHSpOgaWE3xyaqdA/exec';
+    const priceInput = document.getElementById('cardPrice');
+    const saveBtn = document.getElementById('savePrice');
+    const refreshBtn = document.getElementById('refresh');
+    const spinner = document.getElementById('spinner');
+
+    function showLoading(show){spinner.style.display = show ? 'inline-block' : 'none'}
+    const saved = localStorage.getItem('cardPrice');
+    if(saved) priceInput.value = saved;
+
+    saveBtn.addEventListener('click', ()=>{
+      localStorage.setItem('cardPrice', priceInput.value);
+      toast('تم حفظ السعر');
+      computeUI(lastData);
+    });
+    refreshBtn.addEventListener('click', ()=> fetchAndRender());
+
+    function toast(msg){
+      const el = document.createElement('div');
+      el.textContent = msg; el.style.cssText = 'position:fixed;left:12px;bottom:12px;background:#0b1220;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 20px rgba(2,6,23,0.6)';
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),1800);
+    }
+
+    let lastData = [];
+
+    let sitesToCharge = JSON.parse(localStorage.getItem('sitesToCharge') || '[]');
+
+function renderCardsTable(data) {
+  const tbody = document.getElementById('cardsTableBody');
+  tbody.innerHTML = '';
+
+  // فلترة حسب البحث والفلاتر
+  const search = document.getElementById('searchSite').value.trim();
+  const region = document.getElementById('filterRegion').value;
+  let filtered = data;
+  if (search) filtered = filtered.filter(d => d.siteNumber && d.siteNumber.toString().includes(search));
+  if (region) filtered = filtered.filter(d => d.region === region);
+
+  filtered.forEach((row, i) => {
+    const isChecked = sitesToCharge.some(s => s.siteNumber === row.siteNumber);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${row.siteNumber || ''}</td>
+      <td>${row.region || ''}</td>
+      <td>${row.ownerNumber || ''}</td>
+      <td>${row.accessNumber || ''}</td>
+      <td>${row.electricCompany || ''}</td>
+      <td>
+  ${row.location 
+    ? `<a href="${row.location}" target="_blank" 
+         style="
+           display:inline-block;
+           background:linear-gradient(135deg, #06b6d4, #3b82f6);
+           color:white;
+           padding:6px 12px;
+           border-radius:12px;
+           font-size:13px;
+           font-weight:bold;
+           text-decoration:none;
+           box-shadow:0 2px 6px rgba(0,0,0,0.15);
+           transition:all 0.3s ease;
+         "
+         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.25)'"
+         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.15)'"
+       >
+         📍 عرض الموقع
+       </a>` 
+    : ''}
+</td>
+
+
+      <td>
+        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCharge(${i}, '${row.siteNumber}')">
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleCharge(index, siteNumber) {
+  const checkbox = document.querySelectorAll('#cardsTableBody input[type="checkbox"]')[index];
+
+  if (!checkbox.checked) {
+    if (!confirm("هل أنت متأكد من إزالة علامة الصح؟")) {
+      checkbox.checked = true;
+      return;
+    }
+    sitesToCharge = sitesToCharge.filter(s => s.siteNumber !== siteNumber);
+  } else {
+    // إضافة للمواقع التي ستشحن
+    const siteData = lastData.find(s => s.siteNumber === siteNumber);
+    if (siteData) sitesToCharge.push(siteData);
+  }
+
+  localStorage.setItem('sitesToCharge', JSON.stringify(sitesToCharge));
+}
+
+// زرار إلغاء جميع المحدد
+document.getElementById('clearAll').addEventListener('click', () => {
+  if (confirm("هل أنت متأكد من إلغاء تحديد كل المواقع؟")) {
+    sitesToCharge = [];
+    localStorage.setItem('sitesToCharge', JSON.stringify(sitesToCharge));
+    renderCardsTable(lastData);
+  }
+});
+
+
+    async function fetchAndRender(){
+      showLoading(true);
+      try{
+        const data = await loadJSONP(SCRIPT_URL + '?action=getAll', 'handleDataCallback');
+
+        lastData = Array.isArray(data) ? data : (data.records || []);
+        computeUI(lastData);
+      }catch(err){
+        console.error(err);
+        alert('فشل في جلب البيانات من السيرفر.');
+      }finally{showLoading(false)}
+    }
+
+    function computeUI(data){
+      const total = data.length;
+      const waiting = data.filter(d=>{
+        const s = (d.status||'').toString().toLowerCase();
+        return s.includes('need') || s.includes('تحتاج') || s.includes('pending') || s.includes('true') || s.includes('1') || s.includes('check');
+      }).length;
+      const done = data.filter(d=>{
+        const s = (d.status||'').toString().toLowerCase();
+        return s.includes('done') || s.includes('تم') || s.includes('charged') || s.includes('completed');
+      }).length;
+
+      document.getElementById('totalSites').textContent = total;
+      document.getElementById('waitingSites').textContent = waiting;
+      document.getElementById('doneSites').textContent = done;
+
+      const price = Number(localStorage.getItem('cardPrice') || priceInput.value || 30);
+      document.getElementById('profit').textContent = (done * price).toLocaleString();
+
+      const regions = {};
+      data.forEach(d=>{
+        const r = (d.region||'غير محدد').toString();
+        if(!regions[r]) regions[r] = {total:0, waiting:0, done:0};
+        regions[r].total++;
+        const s = (d.status||'').toString().toLowerCase();
+        if(s.includes('تم') || s.includes('done') || s.includes('charged')) regions[r].done++;
+        else if(s.includes('تحتاج') || s.includes('need') || s.includes('pending') || s.includes('check')) regions[r].waiting++;
+      });
+
+      const regionsList = document.getElementById('regionsList');
+      regionsList.innerHTML = '';
+      Object.keys(regions).sort().forEach(name=>{
+        const info = regions[name];
+        const el = document.createElement('div'); el.className='region-card';
+        el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><strong>${name}</strong><div class="muted">${info.total} مواقع</div></div>
+                        <div style="margin-top:8px;font-size:18px;font-weight:700">${info.done}<span class="muted" style="font-weight:400"> تم</span> • ${info.waiting}<span class="muted" style="font-weight:400"> ينتظر</span></div>
+                        <div style="margin-top:8px" class="actions"><button class="view-btn">عرض</button><button class="filter-btn">فلتر</button></div>`;
+        regionsList.appendChild(el);
+      });
+    }
+
+    fetchAndRender();
+
+   document.querySelectorAll('.sidebar a').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const text = link.textContent.trim();
+
+    // إخفاء كل الصفحات
+    document.querySelectorAll('#home-page, #insert-cards-page, #cards-page, #sites-to-charge, #sites-charged, #settings-page')
+      .forEach(sec => sec.style.display = 'none');
+
+    if (text === 'الصفحة الرئيسية') {
+      document.getElementById('home-page').style.display = 'block';
+    }
+    else if (text === 'إدخال كروت الشحن') {
+      document.getElementById('insert-cards-page').style.display = 'block';
+    }
+    else if (text === 'كروت الشحن') {
+      document.getElementById('cards-page').style.display = 'block';
+      renderCardsTable(lastData); // ← هنا بيتعرض الجدول
+    }
+    else if (text === 'مواقع هاتتشحن') {
+      document.getElementById('sites-to-charge').style.display = 'block';
+    }
+    else if (text === 'مواقع تم شحنها') {
+      document.getElementById('sites-charged').style.display = 'block';
+    }
+    else if (text === 'الإعدادات') {
+      document.getElementById('settings-page').style.display = 'block';
+    }
+  });
+});
+
+document.getElementById('cardForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+
+  try {
+    const res = await fetch("https://script.google.com/macros/s/AKfycbwz4k7Lq9i-ovP5IQGoPMArvpNl5Ks0qTbDOoFyBwX3N8VxrQv-9nIHSpOgaWE3xyaqdA/exec", {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (data.status === "success") {
+      Swal.fire({
+        icon: 'success',
+        title: 'تم الإرسال',
+        text: data.message
+      });
+      this.reset();
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'خطأ',
+        text: data.message
+      });
+    }
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'فشل الاتصال',
+      text: err.message
+    });
+  }
+});
+
+function loadJSONP(url, callbackName) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const callbackFunctionName = callbackName;
+
+    // إنشاء callback في window عشان تتعرف عليه JSONP
+    window[callbackFunctionName] = (data) => {
+      resolve(data);
+      delete window[callbackFunctionName]; // تنظيف
+      script.remove();
+    };
+
+    script.src = `${url}&callback=${callbackFunctionName}`;
+    script.onerror = () => {
+      reject(new Error('فشل تحميل JSONP'));
+      delete window[callbackFunctionName];
+      script.remove();
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
+
+
+  </script>
+</body>
+</html>
