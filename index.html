@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="icon" href="data:;base64,iVBORw0KGgo=">
-
-
   <title>لوحة التحكم - كروت الشحن</title>
   <style>
     :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--glass:rgba(255,255,255,0.03);--muted:#94a3b8}
@@ -36,7 +34,6 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     @media (max-width:768px){body{flex-direction:column}.sidebar{width:100%;flex-direction:row;flex-wrap:wrap;justify-content:center}}
 
-
     table {
   border-collapse: collapse;
   width: 100%;
@@ -57,6 +54,15 @@ table tr:hover {
   background-color: rgba(255, 255, 255, 0.05); /* تأثير عند المرور */
 }
 
+#filterRegion {
+  background: white;
+  color: black;
+}
+
+#filterRegion option {
+  background: white;
+  color: black;
+}
   </style>
 </head>
 <body>
@@ -225,7 +231,6 @@ table tr:hover {
     }
 
     let lastData = [];
-
     let sitesToCharge = JSON.parse(localStorage.getItem('sitesToCharge') || '[]');
 
 function renderCardsTable(data) {
@@ -235,7 +240,7 @@ function renderCardsTable(data) {
   // فلترة حسب البحث والفلاتر
   const search = document.getElementById('searchSite').value.trim();
   const region = document.getElementById('filterRegion').value;
-  let filtered = data;
+let filtered = lastData;
   if (search) filtered = filtered.filter(d => d.siteNumber && d.siteNumber.toString().includes(search));
   if (region) filtered = filtered.filter(d => d.region === region);
 
@@ -272,8 +277,6 @@ function renderCardsTable(data) {
        </a>` 
     : ''}
 </td>
-
-
       <td>
         <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCharge(${i}, '${row.siteNumber}')">
       </td>
@@ -309,6 +312,21 @@ document.getElementById('clearAll').addEventListener('click', () => {
   }
 });
 
+function populateRegionFilter(data) {
+  const filterRegion = document.getElementById('filterRegion');
+  const regions = [...new Set(data.map(d => d.region).filter(Boolean))];
+  
+  // مسح أي بيانات قديمة
+  filterRegion.innerHTML = '<option value="">كل المناطق</option>';
+  
+  // إضافة المناطق
+  regions.forEach(region => {
+    const opt = document.createElement('option');
+    opt.value = region;
+    opt.textContent = region;
+    filterRegion.appendChild(opt);
+  });
+}
 
     async function fetchAndRender(){
       showLoading(true);
@@ -317,6 +335,8 @@ document.getElementById('clearAll').addEventListener('click', () => {
 
         lastData = Array.isArray(data) ? data : (data.records || []);
         computeUI(lastData);
+        populateRegionFilter(lastData);
+
       }catch(err){
         console.error(err);
         alert('فشل في جلب البيانات من السيرفر.');
@@ -362,6 +382,15 @@ document.getElementById('clearAll').addEventListener('click', () => {
         regionsList.appendChild(el);
       });
     }
+
+    document.getElementById('searchSite').addEventListener('input', () => {
+  renderCardsTable(lastData);
+});
+
+document.getElementById('filterRegion').addEventListener('change', () => {
+  renderCardsTable(lastData);
+});
+
 
     fetchAndRender();
 
@@ -454,9 +483,6 @@ function loadJSONP(url, callbackName) {
     document.body.appendChild(script);
   });
 }
-
-
-
   </script>
 </body>
 </html>
